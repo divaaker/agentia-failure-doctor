@@ -1,0 +1,40 @@
+{
+  "name": "agentia-plugin-doctor",
+  "version": "0.1.0",
+  "description": "Agentia CLI plugin: headless root-cause triage and guided fixes for failed Copado promotions",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist",
+    "oclif.manifest.json",
+    "skills",
+    "signatures"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "oclif": {
+    "commands": "./dist/commands",
+    "topicSeparator": " ",
+    "topics": {
+      "doctor": {
+        "description": "Diagnose failed Copado jobs and promotions, propose safe fixes, and report DORA metrics"
+      }
+    }
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.31.0",
+    "@oclif/core": "^4.14.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}
