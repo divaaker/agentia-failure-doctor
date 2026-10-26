@@ -1,4 +1,5 @@
 import {Args, Flags} from '@oclif/core'
+import {relative} from 'node:path'
 
 import {DoctorCommand} from '../../lib/base.js'
 import {diagnoseJob} from '../../lib/diagnose.js'
@@ -34,7 +35,7 @@ export default class DoctorLearn extends DoctorCommand {
     const explain = flags.explain ?? d.evidence.find((e) => e.kind === 'ai')?.summary
     if (!explain) this.error('The AI agent gave no answer; pass --explain instead')
     const sig = await learn(d, {title: flags.title, explain, category: flags.category as Category, fix: flags.fix as FixKind, match: flags.match})
-    this.log(`✔ Learned ${sig.id}: ${sig.title}\n  match: /${sig.match}/${sig.flags}\n  saved: ${libraryPath()}\nCommit it so the whole team gets the rule.`)
+    this.log(`✔ Learned ${sig.id}: ${sig.title}\n  match: /${sig.match}/${sig.flags}\n  saved: ${relative(process.cwd(), libraryPath()) || libraryPath()}\nCommit it so the whole team gets the rule.`)
     return sig
   }
 }
