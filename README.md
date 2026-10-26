@@ -4,6 +4,8 @@ Headless root-cause triage, guided fixes and failure prevention for Copado pipel
 
 When a promotion fails, the fix is rarely hard. Finding it is. The Doctor reads the job's steps and logs through Agentia, recognises the failure, separates the root cause from its cascading symptoms, collects evidence, and proposes a fix you confirm before anything changes. Then it stops the same failure from reaching the pipeline again: `preflight` blocks it before promotion, `learn` turns each new fix into a team rule, and `dora` and the Slack digest show whether release health is improving.
 
+Deck: [docs/deck.pdf](docs/deck.pdf).
+
 **Try it in 30 seconds, no Copado org needed:** every command takes `--demo`, which swaps the Copado gateway for a built-in synthetic pipeline (dev → UAT → production, six weeks of history, five open failures).
 
 ```sh
