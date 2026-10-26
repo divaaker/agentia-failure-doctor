@@ -49,6 +49,9 @@ const METADATA_TYPES =
 const ERROR_MARKERS =
   /(does not exist|Invalid type|Invalid field|No such column|not found|is invalid|Dependent class|Compile Error|Assertion ?Failed|System\.\w+Exception|coverage|INVALID_|FIELD_INTEGRITY|DUPLICATE_VALUE|UNABLE_TO_LOCK_ROW|insufficient access|CONFLICT \(|merge conflict|invalid_grant|expired access|Authentication failed|is referenced|cannot be deleted|can't be overwritten|not available in API version|maximum number of|Cannot find|Unknown user|Error:)/i
 
+/** A `sf` table row is an error by position, whatever its message says. */
+const TABLE_ROW = new RegExp(`^(?:│\\s*)?Error\\s+(?:${METADATA_TYPES})\\s`)
+
 const clean = (s: string) => s.replace(/\u001b\[[0-9;]*m/g, '').trim()
 
 function fromJson(text: string, out: DeployError[]) {
@@ -103,7 +106,7 @@ export function extractErrors(text: string): DeployError[] {
   fromJson(text, out)
   for (const rawLine of text.split(/\r?\n/)) {
     const line = clean(rawLine)
-    if (!line || line.startsWith('{') || !ERROR_MARKERS.test(line)) continue
+    if (!line || line.startsWith('{') || !(ERROR_MARKERS.test(line) || TABLE_ROW.test(line))) continue
     let hit: DeployError | undefined
     for (const [re, build] of PATTERNS) {
       const m = line.match(re)

@@ -1,6 +1,8 @@
 import {AgentiaError, type AgentiaRunner} from './agentia.js'
 import {extractErrors} from './extract.js'
-import {isFailed, type Job, type JobStep, list, logText, normalizeJob, pick, str} from './normalize.js'
+import {allRules} from './library.js'
+import {redactDeep} from './redact.js'
+import {isFailed, isResolved, type Job, type JobStep, list, logText, normalizeJob, pick, str} from './normalize.js'
 import {type Category, type Classified, classify, fingerprint, type Signature, SIGNATURES} from './signatures.js'
 
 export interface Finding {
@@ -89,6 +91,7 @@ export async function diagnoseJob(runner: AgentiaRunner, jobId: string, opts: Di
   const job = normalizeJob(await runner.run(['cicd', 'job', 'get', jobId]))
   const notes: string[] = []
   const evidence: Evidence[] = []
+  const rules = opts.rules ?? (await allRules())
 
   let failed = job.steps.filter((s) => isFailed(s.status))
   if (failed.length === 0) {
@@ -108,10 +111,10 @@ export async function diagnoseJob(runner: AgentiaRunner, jobId: string, opts: Di
     } catch (err) {
       notes.push(`Could not read the log for step "${step.name}": ${(err as Error).message}`)
     }
-    for (const e of extractErrors(text)) classified.push({...classify(e, opts.rules ?? SIGNATURES), step: step.name})
+    for (const e of extractErrors(text)) classified.push({...classify(e, rules), step: step.name})
   }
   if (job.errorMessage && classified.length === 0)
-    for (const e of extractErrors(job.errorMessage)) classified.push({...classify(e, opts.rules ?? SIGNATURES), step: 'job'})
+    for (const e of extractErrors(job.errorMessage)) classified.push({...classify(e, rules), step: 'job'})
 
   const findings = rankFindings(classified)
   const rootCause = findings[0]
@@ -124,7 +127,7 @@ export async function diagnoseJob(runner: AgentiaRunner, jobId: string, opts: Di
     await collectDependencies(runner, rootCause, opts, evidence, notes)
   if (opts.ai) await askAi(runner, job, findings, opts, evidence, notes)
 
-  return {
+  return redactDeep({
     job: {id: job.id, name: job.name, status: job.status, type: job.type, parentId: job.parentId, destination: job.destination},
     failedSteps: failed.map((s) => ({id: s.id, name: s.name, status: s.status})),
     rootCause,
@@ -132,10 +135,11 @@ export async function diagnoseJob(runner: AgentiaRunner, jobId: string, opts: Di
     confidence: confidenceOf(rootCause, evidence),
     evidence,
     notes,
-  }
+  })
 }
 
 function confidenceOf(root: Finding | undefined, evidence: Evidence[]): Diagnosis['confidence'] {
+  if (root?.signature.id.startsWith('LOCAL-')) return 'high' // confirmed by the team with `doctor learn`
   if (!root || root.signature.category === 'unknown') return evidence.some((e) => e.kind === 'ai') ? 'medium' : 'low'
   const strong: Category[] = ['credential', 'merge-conflict', 'coverage', 'test-failure', 'org-limit', 'active-version']
   if (strong.includes(root.signature.category) || evidence.some((e) => e.kind !== 'ai')) return 'high'
@@ -145,7 +149,7 @@ function confidenceOf(root: Finding | undefined, evidence: Evidence[]): Diagnosi
 async function collectConflicts(runner: AgentiaRunner, promotionId: string, evidence: Evidence[], notes: string[]) {
   try {
     const conflicts = list(await runner.run(['cicd', 'promotion', 'conflict', 'list', '-p', promotionId]))
-    const open = conflicts.filter((c) => !/resolved/i.test(str(pick(c, 'status', 'resolution')) ?? ''))
+    const open = conflicts.filter((c) => !isResolved(str(pick(c, 'status', 'resolution'))))
     evidence.push({
       kind: 'conflicts',
       summary: `${open.length} unresolved of ${conflicts.length} conflict(s) on promotion ${promotionId}`,

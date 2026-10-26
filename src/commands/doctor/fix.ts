@@ -1,5 +1,5 @@
 import {Args, Flags} from '@oclif/core'
-import {createInterface} from 'node:readline/promises'
+import {createInterface} from 'node:readline'
 
 import {DoctorCommand} from '../../lib/base.js'
 import {diagnoseJob, latestJobForParent} from '../../lib/diagnose.js'
@@ -45,7 +45,9 @@ export default class DoctorFix extends DoctorCommand {
     if (flags.json && !flags.yes && plan.some((s) => s.effect === 'write'))
       this.error('--apply with --json cannot prompt; add --yes to confirm changes non-interactively')
 
-    const rl = flags.yes ? undefined : createInterface({input: process.stdin, output: process.stdout})
+    // A line iterator (not rl.question) so piped answers are not lost between prompts.
+    const rl = flags.yes ? undefined : createInterface({input: process.stdin, terminal: false})
+    const lines = rl?.[Symbol.asyncIterator]()
     const results: StepResult[] = []
     try {
       for (const step of plan) {
@@ -54,8 +56,9 @@ export default class DoctorFix extends DoctorCommand {
           continue
         }
         if (step.effect === 'write' && rl) {
-          const answer = await rl.question(`\n${step.title}\n  $ ${renderCommand(step.command)}\nRun this? [y/N] `)
-          if (!/^y(es)?$/i.test(answer.trim())) {
+          process.stdout.write(`\n${step.title}\n  $ ${renderCommand(step.command)}\nRun this? [y/N] `)
+          const answer = (await lines!.next()).value ?? ''
+          if (!/^y(es)?$/i.test(String(answer).trim())) {
             results.push({step, status: 'skipped'})
             this.log('Stopped: later steps depend on this one.')
             break

@@ -7,7 +7,8 @@ import {diagnoseJob, latestJobForParent} from '../../lib/diagnose.js'
 import {planFixes} from '../../lib/fix.js'
 import {renderDiagnosis} from '../../lib/report.js'
 import {doraFromHistory, scanFailures} from '../../lib/scan.js'
-import {SIGNATURES} from '../../lib/signatures.js'
+import {allRules} from '../../lib/library.js'
+import {preflight, renderPreflight, resolveWork} from '../../lib/preflight.js'
 
 const context = {
   jobId: z.string().optional().describe('Copado JobExecution Id'),
@@ -113,8 +114,29 @@ export default class DoctorMcp extends DoctorCommand {
         annotations: {readOnlyHint: true},
       },
       async () => {
-        const rows = SIGNATURES.map((s) => ({id: s.id, category: s.category, title: s.title, fix: s.fix}))
+        const rows = (await allRules()).map((s) => ({id: s.id, category: s.category, title: s.title, fix: s.fix}))
         return text(rows.map((r) => `${r.id}: ${r.title}`).join('\n'), rows)
+      },
+    )
+
+    server.registerTool(
+      'doctor_preflight',
+      {
+        title: 'Preflight a user story before promotion',
+        description:
+          "Checks that everything the story's components depend on is already in the destination or in the story itself, and (with promotionId) that no conflicts are open. Returns ok=false with the blockers when the promotion would fail. Read-only.",
+        inputSchema: {
+          work: z.string().describe('User story Id or name, e.g. US-0001234'),
+          pipelineId: z.string(),
+          sourceOrgId: z.string(),
+          targetOrgId: z.string(),
+          promotionId: z.string().optional(),
+        },
+        annotations: {readOnlyHint: true},
+      },
+      async (a) => {
+        const r = await preflight(runner, await resolveWork(runner, a.work), a)
+        return text(renderPreflight(r), r)
       },
     )
 

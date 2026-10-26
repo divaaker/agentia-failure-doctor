@@ -1,4 +1,5 @@
 import type {Diagnosis} from './diagnose.js'
+import {isResolved} from './normalize.js'
 
 export interface FixStep {
   title: string
@@ -50,7 +51,7 @@ export function planFixes(d: Diagnosis): FixStep[] {
     }
     case 'resolve-conflict': {
       const conflicts = (d.evidence.find((e) => e.kind === 'conflicts')?.detail as Array<{id?: string; status?: string}>) ?? []
-      const open = conflicts.filter((c) => c.id && !/resolved/i.test(c.status ?? ''))
+      const open = conflicts.filter((c) => c.id && !isResolved(c.status))
       for (const c of open) {
         steps.push({title: `Review conflict ${c.id}`, why: 'Read the conflicting content before choosing a resolution.', command: ['cicd', 'promotion', 'conflict', 'get', c.id!, '-p', promotion!], effect: 'read'})
         steps.push({title: `Auto-resolve conflict ${c.id}`, why: 'Let Copado apply its automatic resolution. Use --mode manual --file <path> instead for reviewed content.', command: ['cicd', 'promotion', 'conflict', 'resolve', c.id!, '-p', promotion!, '--mode', 'auto'], effect: 'write'})

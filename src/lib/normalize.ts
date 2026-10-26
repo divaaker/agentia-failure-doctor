@@ -106,6 +106,8 @@ export function normalizeJob(raw: unknown): Job {
 
 const FAILED = /fail|error|cancel|abort/i
 export const isFailed = (status: string | undefined): boolean => !!status && FAILED.test(status)
+/** Conflict status: "Resolved (auto)" yes, "Unresolved" no. */
+export const isResolved = (status: string | undefined): boolean => !!status && /\bresolved/i.test(status)
 export const isSuccess = (status: string | undefined): boolean => !!status && /success|complete|done/i.test(status)
 
 /**

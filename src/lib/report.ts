@@ -1,5 +1,7 @@
 import type {Diagnosis} from './diagnose.js'
 import {type FixStep, renderCommand} from './fix.js'
+import {isSuccess} from './normalize.js'
+import {redact} from './redact.js'
 
 const ICON: Record<FixStep['effect'], string> = {read: '🔍', write: '✏️ ', manual: '👤'}
 
@@ -7,6 +9,7 @@ const ICON: Record<FixStep['effect'], string> = {read: '🔍', write: '✏️ ',
 export function renderDiagnosis(d: Diagnosis, plan: FixStep[]): string {
   const out: string[] = []
   out.push(`Job ${d.job.name} (${d.job.id}) · ${d.job.status}${d.job.type ? ` · ${d.job.type}` : ''}`)
+  if (isSuccess(d.job.status) && !d.rootCause) return redact(`${out[0]}\n\n✔ Job succeeded. Nothing to fix.`)
   if (d.failedSteps.length) out.push(`Failed step: ${d.failedSteps.map((s) => s.name).join(', ')}`)
   out.push('')
   if (!d.rootCause) {
@@ -39,5 +42,5 @@ export function renderDiagnosis(d: Diagnosis, plan: FixStep[]): string {
     })
   }
   if (d.notes.length) out.push('', ...d.notes.map((n) => `note: ${n}`))
-  return out.join('\n')
+  return redact(out.join('\n'))
 }
